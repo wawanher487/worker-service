@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAQTI Camera</title>
+    <link rel="icon" href="logo.png" type="image/x-icon">
+    <style>
+        /* Global styles */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            color: #333;
+        }
+
+        header {
+            background-color: #1e3163;
+            color: white;
+            width: 100%;
+            padding: 10px 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+        }
+
+        header img {
+            height: 40px;
+            margin-right: 10px;
+        }
+
+        header h1 {
+            font-size: 24px;
+            margin: 0;
+            font-weight: 600;
+        }
+
+        #link-button {
+            background-color: #ffc107;
+            color: #333;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            text-decoration: none;
+            margin-right: 10px;
+            margin-left: 10px;
+        }
+
+        #link-button:hover {
+            background-color: #e0a800;
+        }
+
+        #main-content {
+            flex: 1;
+            width: 100%;
+            padding-top: 60px;
+            display: flex;
+            justify-content: center;
+        }
+
+        #images-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 20px;
+            gap: 30px;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .image-container {
+            position: relative;
+            width: calc(33.33% - 30px);
+            max-width: 500px;
+            margin-bottom: 30px;
+            overflow: hidden;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            background-color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .image-container:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .image-container img {
+            width: 95%;
+            height: auto;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+            border-radius: 12px 12px 12px 12px;
+        }
+
+        .image-container:hover img {
+            transform: scale(1.05);
+        }
+
+        .loading-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: none;
+            width: 40px;
+            height: 40px;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 3;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .info-container {
+            width: 95%;
+            padding: 15px;
+            box-sizing: border-box;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            border-radius: 12px 12px 12px 12px;
+            text-align: center;
+            font-size: 14px;
+            margin-top: 10px;
+            z-index: 2;
+        }
+
+        .buttons-container {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .buttons-container a {
+            background-color: #ffc107;
+            color: #333;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 14px;
+            text-decoration: none;
+            transition: background-color 0.3s ease;
+            width: 40%;
+            text-align: center;
+            margin-left: 10px;
+            margin-right: 10px;
+        }
+
+        .buttons-container a:hover {
+            background-color: #e0a800;
+        }
+
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        #loading-overlay.active {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        #loading-overlay img {
+            width: 100px;
+            height: auto;
+        }
+
+        #modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        #modal img {
+            max-width: 90%;
+            max-height: 80%;
+            border-radius: 12px;
+        }
+
+        #modal.active {
+            display: flex;
+        }
+
+        #modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 24px;
+            color: white;
+            cursor: pointer;
+            background-color: rgba(0, 0, 0, 0.5);
+            border: none;
+            border-radius: 50%;
+            padding: 10px;
+        }
+
+        #modal-close:hover {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+
+        footer {
+            background-color: #1e3163;
+            width: 100%;
+            padding: 15px 20px;
+            text-align: center;
+            color: white;
+            margin-top: auto;
+            box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        @media screen and (max-width: 1024px) {
+            .image-container {
+                width: calc(50% - 30px);
+            }
+        }
+
+        @media screen and (max-width: 768px) {
+            .image-container {
+                width: calc(100% - 30px);
+            }
+        }
+
+        @media screen and (max-width: 480px) {
+            .image-container {
+                width: calc(100% - 30px);
+            }
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div style="display: flex; align-items: center;">
+            <img src="logo.png" alt="Hylab Logo">
+            <h1>Camera</h1>
+        </div>
+        <a href="https://saqti.pptik.id/" id="link-button">View History</a>
+    </header>
+
+    <div id="loading-overlay">
+        <img src="loading.gif" alt="Loading...">
+    </div>
+
+    <div id="modal">
+        <button id="modal-close">&times;</button>
+        <img id="modal-img" src="" alt="Larger View">
+    </div>
+
+    <div id="main-content">
+        <div id="images-container">
+            <!-- Placeholder for images -->
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2024 Camera. All rights reserved.</p>
+    </footer>
+
+    <script>
+        const ws = new WebSocket('wss://worker-saqti.pptik.id:9076');
+        const imageContainers = {};
+        const loadingOverlay = document.getElementById('loading-overlay');
+        let isFirstImageLoaded = false;
+        const modal = document.getElementById('modal');
+        const modalImg = document.getElementById('modal-img');
+        const modalClose = document.getElementById('modal-close');
+
+        function showLoadingOverlay() {
+            loadingOverlay.classList.add('active');
+        }
+
+        function hideLoadingOverlay() {
+            loadingOverlay.classList.remove('active');
+        }
+
+        function openModal(src) {
+            modalImg.src = src;
+            modal.classList.add('active');
+        }
+
+        function closeModal() {
+            modal.classList.remove('active');
+        }
+
+
+        async function fetchGuidDevices() {
+            try {
+                const response = await fetch('https://saqti.pptik.id/api/v1/devices/getAllDevice?page=1&limit=50');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch guid devices');
+                }
+                return await response.json();
+            } catch (error) {
+                console.error('Error fetching guid devices:', error);
+                return [];
+            }
+        }
+
+        function subscribeToDevices() {
+        if (guidDevices.data.length === 0) {
+            return;
+        }
+        guidDevices.data.forEach(guidDevice => {
+            ws.send(JSON.stringify({ action: 'subscribe', topic: guidDevice.guid_device }));
+        });
+    }
+
+        async function initializeWebSocket() {
+            const guidDevices = await fetchGuidDevices();
+            // console.log(guidDevices.data.data);
+            if (guidDevices.data.length === 0) {
+                return;
+            }
+
+            ws.onopen = function () {
+                console.log('WebSocket connection opened');
+                loadingOverlay.classList.add('active');
+                 guidDevices.data.data.forEach(guidDevice => {
+                    ws.send(JSON.stringify({ action: 'subscribe', topic: guidDevice.deviceGuid }));
+                });
+                subscribeToDevices(); 
+               
+                setInterval(subscribeToDevices, 3000);
+            };
+
+            ws.onmessage = function (event) {
+                const imagesDiv = document.getElementById('images-container');
+                const payload = JSON.parse(event.data);
+                const guidDevice = payload.deviceGuid;
+                const timestamp = payload.createdAt;
+
+                if (!imageContainers[guidDevice]) {
+                    const container = document.createElement('div');
+                    container.classList.add('image-container');
+                    const img = document.createElement('img');
+                    const overlay = document.createElement('div');
+                    overlay.classList.add('loading-indicator');
+
+                    const loadingImg = document.createElement('img');
+                    loadingImg.src = 'loading.gif';
+                    loadingImg.alt = 'Loading...';
+                    overlay.appendChild(loadingImg);
+
+                    const infoContainer = document.createElement('div');
+                    infoContainer.classList.add('info-container');
+                    infoContainer.textContent = `${guidDevice} - ${timestamp}`;
+
+                    const buttonsContainer = document.createElement('div');
+                    buttonsContainer.classList.add('buttons-container');
+
+                    const detailButton = document.createElement('a');
+                    detailButton.href = `/detail.html?guidDevice=${guidDevice}`;
+                    detailButton.textContent = 'Details';
+
+                    const aiButton = document.createElement('a');
+                    aiButton.href = `/ai.html?guidDevice=${guidDevice}`;
+                    aiButton.textContent = 'AI';
+
+                    buttonsContainer.appendChild(detailButton);
+                    buttonsContainer.appendChild(aiButton);
+
+                    container.appendChild(img);
+                    container.appendChild(overlay);
+                    container.appendChild(infoContainer);
+                    container.appendChild(buttonsContainer);
+                    imagesDiv.appendChild(container);
+
+                    imageContainers[guidDevice] = { img, overlay };
+                }
+
+                const { img, overlay } = imageContainers[guidDevice];
+                img.src = `https://saqti.pptik.id/api/v1/images/${payload.value}`;
+
+                img.onload = function () {
+                    overlay.style.display = 'none';
+                    if (!isFirstImageLoaded) {
+                        loadingOverlay.classList.remove('active');
+                        isFirstImageLoaded = true;
+                    }
+                };
+
+                img.onloadstart = function () {
+                    overlay.style.display = 'flex';
+                };
+            };
+
+            ws.onclose = function () {
+                console.log('WebSocket connection closed');
+            };
+
+            ws.onerror = function (error) {
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        initializeWebSocket();
+    </script>
+</body>
+
+</html>

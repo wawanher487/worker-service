@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Image Processing with Teachable Machine</title>
+    <link rel="icon" href="logo.png" type="image/x-icon">
+    <style>
+        /* Global styles */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            background-color: #0044cc;
+            color: white;
+            padding: 15px 25px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1000;
+        }
+
+        header img {
+            height: 35px;
+            margin-right: 15px;
+        }
+
+        header h1 {
+            font-size: 26px;
+            margin: 0;
+            font-weight: 700;
+        }
+
+        #main-content {
+            flex: 1;
+            padding: 100px 20px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            gap: 20px;
+            max-width: 1200px;
+            margin: auto;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+            visibility: hidden;
+        }
+
+        .loading-overlay.active {
+            visibility: visible;
+        }
+
+        .loading-indicator {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid #0044cc;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        footer {
+            background-color: #0044cc;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            width: 100%;
+            margin-top: auto;
+            box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .image-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .image-box {
+            flex: 1;
+            min-width: 320px;
+            max-width: 500px;
+            text-align: center;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            transition: box-shadow 0.3s ease;
+        }
+
+        .image-box:hover {
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .image-box img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .ai-results {
+            text-align: left;
+            margin-top: 15px;
+            font-size: 17px;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 768px) {
+            .image-container {
+                flex-direction: column;
+            }
+        }
+
+        @media (max-width: 480px) {
+            header h1 {
+                font-size: 22px;
+            }
+
+            #main-content {
+                padding: 70px 10px 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <img src="logo.png" alt="Logo">
+        <h1>AI Image Processing</h1>
+    </header>
+
+    <div id="main-content">
+        <div class="loading-overlay active" id="loading-overlay">
+            <div class="loading-indicator"></div>
+        </div>
+        <div class="image-container">
+            <div class="image-box" id="websocket-image-container">
+                <!-- <h2>WebSocket Image</h2> -->
+                <img id="websocket-image" src="" alt="WebSocket Image">
+            </div>
+            <div class="image-box" id="ai-results-container">
+                <h2>AI Results</h2>
+                <div id="ai-results" class="ai-results"></div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2024 AI Processing. All rights reserved.</p>
+    </footer>
+
+    <!-- TensorFlow.js and Teachable Machine scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+    <script type="text/javascript">
+        const URL = "./model/";
+        let model, maxPredictions;
+        const { guidDevice } = getQueryParams();
+
+        function getQueryParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                guidDevice: params.get('guidDevice')
+            };
+        }
+
+        // Load the image model
+        async function init() {
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+
+            try {
+                // Load the model and metadata
+                model = await tmImage.load(modelURL, metadataURL);
+                maxPredictions = model.getTotalClasses();
+            } catch (error) {
+                console.error('Error initializing model:', error);
+            }
+        }
+
+        // Load image from URL and predict
+        async function predictFromImageUrl(imageUrl) {
+            try {
+                // Create an image element
+                const img = new Image();
+                img.crossOrigin = 'Anonymous'; // Handle CORS issues
+                img.src = imageUrl;
+
+                // Wait for the image to load
+                await new Promise((resolve) => {
+                    img.onload = () => resolve();
+                    img.onerror = (error) => {
+                        console.error('Error loading image:', error);
+                        document.getElementById('loading-overlay').classList.remove('active');
+                    };
+                });
+
+                // Create a canvas to draw the image
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+
+                // Predict using the model
+                const prediction = await model.predict(canvas);
+                const aiResults = document.getElementById('ai-results');
+                aiResults.innerHTML = ''; // Clear previous results
+
+                prediction.forEach(p => {
+                    aiResults.innerHTML += `<div>${p.className}: ${p.probability.toFixed(2)}</div>`;
+                });
+
+                // Hide loading overlay
+                document.getElementById('loading-overlay').classList.remove('active');
+            } catch (error) {
+                console.error('Error predicting from image URL:', error);
+                document.getElementById('loading-overlay').classList.remove('active');
+            }
+        }
+
+        // WebSocket initialization and handling
+        function initializeWebSocket() {
+            const ws = new WebSocket('wss://worker-cctv.pptik.id:8726');
+
+            ws.onopen = function () {
+                console.log('WebSocket connection opened');
+                ws.send(JSON.stringify({ action: 'subscribe', topic: guidDevice }));
+            };
+
+            ws.onmessage = function (event) {
+                const data = JSON.parse(event.data);
+                if (data.guid_device === guidDevice) {
+                    document.getElementById('loading-overlay').classList.add('active');
+                    const websocketImage = document.getElementById('websocket-image');
+                    websocketImage.src = `https://smartparking.pptik.id/data/data/${data.value}`;
+                    predictFromImageUrl(websocketImage.src);
+                }
+            };
+
+            ws.onclose = function () {
+                console.log('WebSocket connection closed');
+            };
+
+            ws.onerror = function (error) {
+                console.error('WebSocket error:', error);
+                document.getElementById('loading-overlay').classList.remove('active');
+            };
+        }
+
+        // Initialize everything on window load
+        window.onload = async function () {
+            await init();
+            initializeWebSocket();
+        };
+    </script>
+</body>
+</html>

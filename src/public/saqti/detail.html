@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Detail</title>
+    <link rel="icon" href="logo.png" type="image/x-icon">
+    <style>
+        /* Global styles */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            background-color: #1e3163;
+            color: white;
+            width: 100%;
+            padding: 10px 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+        }
+
+        header img {
+            height: 30px;
+            margin-right: 10px;
+        }
+
+        header h1 {
+            font-size: 24px;
+            margin: 0;
+            font-weight: 600;
+        }
+
+        #main-content {
+            flex: 1;
+            padding: 80px 20px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .video-container {
+            position: relative;
+            max-width: 600px;
+            width: 90%;
+            background-color: #000;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .video-container img {
+            width: 100%;
+            display: block;
+        }
+
+        .video-controls {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            color: #fff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px;
+            font-size: 14px;
+        }
+
+        footer {
+            background-color: #1e3163;
+            width: 100%;
+            padding: 15px 20px;
+            text-align: center;
+            color: white;
+            margin-top: auto;
+            box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Loading Spinner Styles */
+        .spinner {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #1e3163;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+        }
+
+        /* Responsive Styles */
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 20px;
+            }
+
+            .video-controls {
+                font-size: 12px;
+                padding: 3px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 10px;
+            }
+
+            header h1 {
+                font-size: 18px;
+            }
+
+            header img {
+                height: 25px;
+            }
+
+            #main-content {
+                padding: 60px 10px 10px;
+            }
+
+            .video-container {
+                max-width: 100%;
+                border-radius: 0;
+                box-shadow: none;
+            }
+
+            .video-controls {
+                font-size: 8px;
+                padding: 2px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div style="display: flex; align-items: center;">
+            <img src="logo.png" alt="Camera Logo">
+            <h1>Camera Detail</h1>
+        </div>
+        <a href="index.html" id="link-button">Back</a>
+    </header>
+
+    <div id="main-content">
+        <div class="loading">
+            <div class="spinner"></div>
+        </div>
+        <div class="video-container" style="display: none;">
+            <img id="camera-image" src="" alt="Camera Image">
+            <div class="video-controls">
+                <span id="camera-guid">Camera GUID</span>
+                <span id="camera-timestamp">Timestamp: </span>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2024 Camera. All rights reserved.</p>
+    </footer>
+
+    <script>
+        let ws;
+        const { guidDevice } = getQueryParams();
+        const imgElement = document.getElementById('camera-image');
+        const guidElement = document.getElementById('camera-guid');
+        const timestampElement = document.getElementById('camera-timestamp');
+        const loadingElement = document.querySelector('.loading');
+        const videoContainer = document.querySelector('.video-container');
+
+        function getQueryParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                guidDevice: params.get('guidDevice')
+            };
+        }
+
+        function initializeWebSocket() {
+            if (!guidDevice) {
+                console.error('No GUID device parameter found');
+                return;
+            }
+
+            ws = new WebSocket('wss://worker-cctv.pptik.id:8726');
+
+            ws.onopen = function () {
+                console.log('WebSocket connection opened');
+                ws.send(JSON.stringify({ action: 'subscribe', topic: guidDevice }));
+            };
+
+            ws.onmessage = function (event) {
+                const payload = JSON.parse(event.data);
+                if (payload.guid_device === guidDevice) {
+                    imgElement.src = `https://smartparking.pptik.id/data/data/${payload.value}`;
+                    guidElement.textContent = `${payload.datetime} ${payload.guid_device}`;
+                    timestampElement.textContent = ``;
+                    loadingElement.style.display = 'none'; // Hide loading spinner
+                    videoContainer.style.display = 'block'; // Show video container
+                }
+            };
+
+            ws.onclose = function () {
+                console.log('WebSocket connection closed');
+                // Attempt to reconnect after a short delay
+                setTimeout(initializeWebSocket, 100);
+            };
+
+            ws.onerror = function (error) {
+                console.error('WebSocket error:', error);
+                // Attempt to reconnect after a short delay
+                setTimeout(initializeWebSocket, 100);
+            };
+        }
+
+        function reconnectWebSocket() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ action: 'subscribe', topic: guidDevice }));
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeWebSocket();
+            setInterval(reconnectWebSocket, 10000); // Re-subscribe every 30 seconds
+        });
+    </script>
+</body>
+</html>

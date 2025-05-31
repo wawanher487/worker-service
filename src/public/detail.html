@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hylab Educam - ASP</title>
+    <style>
+        /* Global styles */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            color: #333;
+        }
+
+        header {
+            background-color: #1e3163;
+            color: white;
+            width: 100%;
+            padding: 10px 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: center; /* Center content horizontally */
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+        }
+
+        header img {
+            height: 40px;
+            margin-right: 10px;
+        }
+
+        header h1 {
+            font-size: 24px;
+            margin: 0;
+            font-weight: 600;
+        }
+
+        #main-content {
+            flex: 1;
+            width: 100%;
+            padding-top: 60px; /* Adjust padding to match the header height */
+            display: flex;
+            justify-content: center;
+        }
+
+        #images-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 20px;
+            gap: 30px;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .image-container {
+            position: relative;
+            width: calc(33.33% - 30px);
+            max-width: 400px;
+            margin-bottom: 30px;
+            overflow: hidden;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .image-container:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+            border-radius: 12px;
+        }
+
+        .image-container:hover img {
+            transform: scale(1.05);
+        }
+
+        .loading-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: none;
+            width: 40px;
+            height: 40px;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 3;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .image-container:hover .loading-indicator {
+            opacity: 1;
+        }
+
+        .info-overlay {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 2;
+        }
+
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        #loading-overlay.active {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        #loading-overlay img {
+            width: 100px;
+            height: auto;
+        }
+
+        footer {
+            background-color: #1e3163;
+            width: 100%;
+            padding: 15px 20px;
+            text-align: center;
+            color: white;
+            margin-top: auto;
+            box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        @media screen and (max-width: 1024px) {
+            .image-container {
+                width: calc(50% - 30px);
+            }
+        }
+
+        @media screen and (max-width: 768px) {
+            .image-container {
+                width: calc(100% - 30px);
+            }
+        }
+
+        @media screen and (max-width: 480px) {
+            .image-container {
+                width: calc(100% - 30px);
+            }
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <img src="logo.png" alt="Hylab Logo">
+        <h1>Hylab Educam - ASP</h1>
+    </header>
+
+    <div id="loading-overlay">
+        <img src="loading.gif" alt="Loading...">
+    </div>
+
+    <div id="main-content">
+        <div id="images-container">
+            <!-- Placeholder for images -->
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2024 Hylab Educam - ASP. All rights reserved.</p>
+    </footer>
+
+    <script>
+        const ws = new WebSocket('ws://localhost:5206');
+        const topics = ['RrbSVZJgD9A', 'ff116e8e8e73', 'bff3bf0c93fc'];
+        const imageContainers = {};
+        const loadingOverlay = document.getElementById('loading-overlay');
+
+        ws.onopen = function () {
+            console.log('WebSocket connection opened');
+            loadingOverlay.classList.add('active');
+            topics.forEach(topic => {
+                ws.send(JSON.stringify({ action: 'subscribe', topic: topic }));
+            });
+        };
+
+        ws.onmessage = function (event) {
+            const imagesDiv = document.getElementById('images-container');
+            const payload = JSON.parse(event.data);
+            const guidDevice = payload.guid_device;
+            const timestamp = payload.datetime;
+
+            if (!imageContainers[guidDevice]) {
+                const container = document.createElement('div');
+                container.classList.add('image-container');
+                const img = document.createElement('img');
+                const overlay = document.createElement('div');
+                overlay.classList.add('loading-indicator');
+                const loadingImg = document.createElement('img');
+                loadingImg.src = 'loading.gif';
+                loadingImg.alt = 'Loading...';
+                overlay.appendChild(loadingImg);
+
+                const infoOverlay = document.createElement('div');
+                infoOverlay.classList.add('info-overlay');
+                infoOverlay.textContent = `Captured at: ${timestamp}`;
+
+                container.appendChild(img);
+                container.appendChild(overlay);
+                container.appendChild(infoOverlay);
+                imagesDiv.appendChild(container);
+
+                imageContainers[guidDevice] = { container, img, overlay, infoOverlay };
+            }
+
+            const imageContainer = imageContainers[guidDevice];
+            imageContainer.overlay.style.display = 'block';
+            imageContainer.img.onload = function () {
+                imageContainer.overlay.style.display = 'none';
+                if (loadingOverlay.classList.contains('active')) {
+                    loadingOverlay.classList.remove('active');
+                }
+            };
+            imageContainer.img.src = `https://hylab.pptik.id/data/raw_data/${payload.value}?timestamp=${new Date().getTime()}`;
+            imageContainer.img.alt = `Image for ${guidDevice}`;
+            imageContainer.infoOverlay.textContent = `Captured at: ${timestamp}`;
+        };
+
+        ws.onclose = function () {
+            console.log('WebSocket connection closed');
+        };
+
+        ws.onerror = function (error) {
+            console.error('WebSocket error:', error);
+        };
+    </script>
+</body>
+
+</html>
