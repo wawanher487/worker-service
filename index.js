@@ -1,4 +1,3 @@
-
 require("dotenv").config();
 const config = require("./src/config");
 const worker = require("./src");
@@ -11,9 +10,7 @@ async function main() {
   try {
     logger.info("Starting Worker...");
     logger.info("Starting Worker On Server Biznet...");
-    logger.info("Modifed By Asep Trisna Setiawan, Bandung, 28-10-2024");
-    
-
+    logger.info("Modifed By Wawan Hermawan, Bandung, 20-05-2025");
 
     // Menginisialisasi koneksi ke MongoDB dan RabbitMQ
     await config.connectToMongoDB();
