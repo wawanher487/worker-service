@@ -35,7 +35,9 @@ class LogController {
     const guidDevice = data.guid_camera;
     const captureTime = data.capture_time;
 
-    const timestamp = Math.floor(new Date(captureTime).getTime() / 1000).toString();
+    const timestamp = Math.floor(
+      new Date(captureTime).getTime() / 1000
+    ).toString();
     const datetime = moment(captureTime).format("DD-MM-YYYY HH:mm:ss");
 
     const guid = uuidv4();
