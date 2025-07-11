@@ -1,8 +1,6 @@
-const { saveLog, saveTrash } = require("../../service/database");
-const { error: logError } = require("../../util/logger");
+const { saveLog } = require("../../service/database");
 const { v4: uuidv4 } = require("uuid");
 const moment = require("moment");
-const { broadcast } = require("../../service/webSocket");
 const { publishToRabbitMQ } = require("../../service/messageBroker");
 const ftp = require("basic-ftp");
 
@@ -18,7 +16,7 @@ class LogController {
       });
 
       const files = await client.list(process.env.FTP_FOLDER);
-      const file = files.find(f => f.name === filename);
+      const file = files.find((f) => f.name === filename);
       return file && file.size > 0;
     } catch (err) {
       console.error(`[FTP ERROR] ${err.message}`);
@@ -40,8 +38,10 @@ class LogController {
     const timestamp = Math.floor(new Date(captureTime).getTime() / 1000).toString();
     const datetime = moment(captureTime).format("DD-MM-YYYY HH:mm:ss");
 
+    const guid = uuidv4();
+
     const payload = {
-      guid: uuidv4(),
+      guid,
       guid_device: guidDevice,
       value: filename,
       timestamp,
@@ -49,10 +49,21 @@ class LogController {
     };
 
     try {
+      // 1. Simpan ke database `history`
       await saveLog(payload);
-      // broadcast(payload.guid_device, JSON.stringify(payload));
-      // await publishToRabbitMQ(channel, 'service.ai', payload, parseInt(process.env.QUEUE_TTL, 10) || 60000);
-      // console.log(`[LOGGED] ${filename}`);
+
+      // 2. Kirim ke AI Service via RabbitMQ queue: `to_ai_service`
+      const aiPayload = {
+        guid,
+        guid_device: guidDevice,
+        gambar: filename,
+        timestamp,
+        datetime,
+      };
+
+      await publishToRabbitMQ(channel, "to_ai_service", aiPayload);
+
+      console.log(`[AI QUEUE] Payload dikirim ke AI Service melalui RabbitMQ`);
     } catch (err) {
       console.error(`[PROCESS ERROR] ${err.message}`);
     }
