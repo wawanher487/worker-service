@@ -7,7 +7,9 @@ class Worker {
     try {
       await channel.assertQueue(process.env.QUE, {
         durable: false,
-        arguments: 60000 ? { "x-message-ttl": 60000 } : {}, // Add TTL if provided
+        arguments: 60000 ? { "x-message-ttl": 60000 } : {
+          
+        }, // Add TTL if provided
       });
 
       channel.consume(
